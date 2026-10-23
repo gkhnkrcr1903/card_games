@@ -6,6 +6,7 @@ import {
 } from './bridge.js';
 import { KING_GAMES, kingRules, kingScores, kingOptions, kingChooseGame } from './king.js';
 import { LESSONS, KING_RULES } from './lessons.js';
+import { explainBid, explainPlay, playFeedback, bidFeedback } from './coach.js';
 
 const app = document.getElementById('app');
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -246,16 +247,13 @@ function bCall(seat, call, expl) {
   g.auction.push({ seat, call });
   g.expl.push(expl);
   g.turn = (seat + 1) % 4;
-  g.hint = null;
+  g.hint = null; g.hintCall = null;
   bStep();
 }
 function userBid(call) {
   if (g.phase !== 'bid' || g.turn !== 0 || !isLegal(g.auction, 0, call)) return;
   if (g.tutor) {
-    const rec = chooseBid(g.auction, 0, g.hands[0]);
-    g.feedback = callEq(rec.call, call)
-      ? { ok: true, html: `✓ Sistemle aynı: <b>${bidStr(call)}</b> — ${esc(rec.expl)}` }
-      : { ok: false, html: `Sistem önerisi <b>${bidStr(rec.call)}</b> idi — ${esc(rec.expl)}` };
+    g.feedback = bidFeedback(g.auction, 0, g.hands[0], call, callEq);
   }
   bCall(0, call, null);
 }
@@ -277,7 +275,7 @@ function bEndAuction() {
 function bPlay(p, c) {
   const t = playCard(g.st, p, c);
   if (t) g.lastTrick = t;
-  g.hint = null; g.hintCard = null;
+  g.hint = null; g.hintCard = null; g.hintCall = null;
   bStep();
 }
 function bUserCard(seat, i) {
@@ -289,20 +287,9 @@ function bUserCard(seat, i) {
   if (g.tutor && legal.length > 1) {
     const viewer = seat === g.dummy ? g.declarer : seat;
     const res = analyzeMoves(st, seat, known(viewer), 14);
-    const best = res.reduce((a, b) => (b.v > a.v ? b : a));
-    const mine = res.find(r => sameCard(r.c, c));
-    g.feedback = best.v - mine.v >= 0.45
-      ? { ok: false, html: `${cardStr(c)} yerine <b>${cardStr(best.c)}</b> daha iyiydi: ortalama ${best.v.toFixed(1)} löve, sizinki ${mine.v.toFixed(1)}. ${playTip(st)}` }
-      : { ok: true, html: `✓ İyi kart: ${cardStr(c)} (ortalama ${mine.v.toFixed(1)} löve)` };
+    g.feedback = playFeedback(st, seat, c, g.contract, res);
   }
   bPlay(seat, c);
-}
-function playTip(st) {
-  const n = st.trick.length;
-  if (n === 0) return 'İpucu: atakta güçlü dizinin tepesinden ya da eşinizin renginden oynayın; deklaransanız önce kozları çekin.';
-  if (n === 1) return 'İpucu: ikinci el genelde küçük oynar; honörü honörle karşılayın.';
-  if (n === 2) return 'İpucu: üçüncü el genelde büyük oynar.';
-  return 'İpucu: son el, löveyi en ucuz kartla alır ya da en küçüğü atar.';
 }
 function bEndPlay() {
   const c = g.contract, side = c.declarer % 2;
@@ -322,13 +309,12 @@ function bEndPlay() {
 }
 function bHint() {
   if (g.phase === 'bid' && g.turn === 0) {
-    const r = chooseBid(g.auction, 0, g.hands[0]);
-    g.hint = `Öneri: <b>${bidStr(r.call)}</b> — ${esc(r.expl)}`;
+    const ex = explainBid(g.auction, 0, g.hands[0]);
+    g.hint = ex.html; g.hintLesson = ex.lesson; g.hintCall = ex.call;
   } else if (g.phase === 'play' && userControls(g.st.turn)) {
     const p = g.st.turn, viewer = p === g.dummy ? g.declarer : p;
-    const res = analyzeMoves(g.st, p, known(viewer), 24).sort((a, b) => b.v - a.v);
-    g.hintCard = res[0].c;
-    g.hint = `Öneri: <b>${cardStr(res[0].c)}</b> (${SEAT[p]}) — ortalama ${res[0].v.toFixed(1)} löve.<br><small>${res.slice(0, 4).map(r => `${cardStr(r.c)}: ${r.v.toFixed(1)}`).join(' · ')}</small><br><small>${playTip(g.st)}</small>`;
+    const ex = explainPlay(g.st, p, viewer, g.contract, analyzeMoves(g.st, p, known(viewer), 24));
+    g.hintCard = ex.card; g.hint = ex.html; g.hintLesson = ex.lesson;
   }
   render();
 }
@@ -404,15 +390,16 @@ function bridgeHTML() {
   if (g.phase === 'bid' && g.turn === 0) panel.push(`<div class="card-box"><h3>Deklarasyonunuz</h3>${bidBoxHTML(g.auction, 0)}</div>`);
   panel.push(`<div class="card-box"><h3>Deklarasyon</h3>${auctionHTML()}</div>`);
   panel.push(`<div class="card-box"><h3>Eliniz</h3><div style="font-size:14px">${handSummary(g.hands[0])}</div>
-    ${g.feedback ? `<div class="fb ${g.feedback.ok ? '' : 'warn'}" style="margin-top:8px">${g.feedback.html}</div>` : ''}
-    ${g.hint ? `<div class="hint-box" style="margin-top:8px">${g.hint}</div>` : ''}
+    ${g.feedback ? `<div class="fb ${g.feedback.ok ? '' : 'warn'}" style="margin-top:8px">${g.feedback.html}${g.feedback.lesson != null ? ` <button class="linkbtn" data-act="lessonpop" data-i="${g.feedback.lesson}">📖 İlgili ders</button>` : ''}</div>` : ''}
+    ${g.hint ? `<div class="hint-box coach" style="margin-top:8px">${g.hint}<div class="row-btns" style="margin-top:6px">${g.hintCall ? `<button class="btn" data-act="bid" data-call='${JSON.stringify(g.hintCall)}'>${bidStr(g.hintCall)} de</button>` : ''}${g.hintLesson != null ? `<button class="btn light" data-act="lessonpop" data-i="${g.hintLesson}">📖 ${LESSONS[g.hintLesson].title}</button>` : ''}<button class="btn light" data-act="hideHint">Kapat</button></div></div>` : ''}
     <div class="row-btns" style="margin-top:8px">
       <button class="btn" data-act="hint" ${(g.phase === 'bid' && g.turn === 0) || (g.phase === 'play' && userControls(st.turn)) ? '' : 'disabled'}>💡 İpucu</button>
       <button class="btn ${g.phase === 'done' ? 'primary' : 'light'}" data-act="bnext">${g.phase === 'done' ? 'Sonraki el' : 'Yeni el'}</button>
       <button class="btn light" data-act="menu">Ana menü</button></div></div>`);
   if (g.tutor || g.auction.length) panel.push(`<div class="card-box"><h3>Deklarasyon açıklamaları</h3><div class="log">${g.auction.map((a, i) => `<div><b>${SEAT[a.seat].split(' ')[0]}: ${bidStr(a.call)}</b> — ${esc(g.expl[i])}</div>`).reverse().join('') || '<div>Henüz deklarasyon yok.</div>'}</div></div>`);
   let modal = '';
-  if (g.phase === 'done' && g.result && !g.hideRes) {
+  if (g.lessonPop != null) modal = `<div class="result"><div class="box">${'<h2>' + LESSONS[g.lessonPop].title + '</h2>' + LESSONS[g.lessonPop].html}<div class="row-btns" style="margin-top:12px"><button class="btn primary" data-act="lessonclose">Oyuna dön</button></div></div></div>`;
+  else if (g.phase === 'done' && g.result && !g.hideRes) {
     modal = `<div class="result"><div class="box"><h2>${g.result.title}</h2><p>${g.result.text}</p>
       <div class="allhands">${[2, 1, 3, 0].map(p => `<div><h4>${SEAT[p]} · ${hcp(g.hands[p])} HP</h4>${suitLines(g.hands[p]).replace('suitlines', 'sl')}</div>`).join('')}</div>
       ${g.history.length ? `<table class="sc"><tr><th>El</th><th>Kontrat</th><th>Löve</th><th>K-G</th></tr>${g.history.slice(-6).map(h => `<tr><td>#${h.board}</td><td>${h.contract}</td><td>${h.tricks}</td><td class="${h.ns >= 0 ? 'pos' : 'neg'}">${h.ns}</td></tr>`).join('')}</table>` : ''}
@@ -645,6 +632,9 @@ function onAct(e) {
     case 'knext': return kNewDeal();
     case 'closeres': g.hideRes = true; break;
     case 'kchoose': return kStart(g.options[+el.dataset.i]);
+    case 'lessonpop': g.lessonPop = +el.dataset.i; break;
+    case 'lessonclose': g.lessonPop = null; break;
+    case 'hideHint': g.hint = null; g.hintCard = null; g.hintCall = null; break;
     case 'lesson': learnSel = el.dataset.i === 'king' ? 'king' : +el.dataset.i; break;
     case 'quiz': learnSel = 'q-' + el.dataset.q; newQuiz(el.dataset.q); break;
     case 'qcheck': {

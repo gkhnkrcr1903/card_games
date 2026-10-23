@@ -412,3 +412,13 @@ body {
 .backpick .card.back.plus::before, .backpick .card.back.plus::after { content: none; }
 .card .pips.many i { width: calc(var(--cw) * .17); height: calc(var(--cw) * .17); }
 .th-modern .card .pips.many i { width: calc(var(--cw) * .14); height: calc(var(--cw) * .14); }
+
+/* koç açıklamaları */
+.coach { line-height: 1.45; }
+.coach .co-head { font-size: 15px; margin-bottom: 6px; }
+.coach .co-head .big { font-size: 20px; }
+.coach .co-sec { border-top: 1px dashed #e6d9a8; padding-top: 6px; margin-top: 6px; }
+.coach .co-t { font-weight: 700; font-size: 13px; color: #7a5a10; margin-bottom: 2px; }
+.coach ul { margin: 2px 0; padding-left: 18px; }
+.coach p { margin: 3px 0; }
+.linkbtn { background: none; border: 0; color: var(--felt); text-decoration: underline; padding: 0; font-weight: 600; }
