@@ -99,7 +99,7 @@ body.bigidx { --c-idx: .36; }
 .th-night.fourcolor { --c-s2: #6aa8ff; --c-s3: #5fd68a; }
 
 .card {
-  width: var(--cw); height: var(--ch); flex: none;
+  width: var(--cw); height: calc(var(--cw) * 1.42); flex: none;
   border-radius: calc(var(--cw) * .1);
   background: var(--c-bg); border: 1px solid var(--c-border);
   box-shadow: 0 1px 1px rgba(0,0,0,.18), 0 3px 8px rgba(0,0,0,.28), var(--c-frame);
@@ -199,7 +199,7 @@ body.bigidx { --c-idx: .36; }
 .backs { display: flex; justify-content: center; --cw: clamp(26px, 3.2vw, 40px); }
 .backs .card + .card { margin-left: calc(var(--cw) * -0.72); }
 .backs.v { flex-direction: column; align-items: center; }
-.backs.v .card + .card { margin-left: 0; margin-top: calc(var(--ch) * -0.82); }
+.backs.v .card + .card { margin-left: 0; margin-top: calc(var(--cw) * 1.42 * -0.82); }
 
 /* ---------- Oyun ekranı ---------- */
 .game {
@@ -354,3 +354,61 @@ body, .tb-green {
 .feltsw { display: block; width: 64px; height: 42px; border-radius: 8px; background: var(--table-bg); border: 3px solid var(--table-rim); }
 .feltsw.plus { background: #f2efe7; border: 2px dashed #b9b2a2; display: grid; place-items: center; font-size: 22px; color: var(--muted); }
 .backpick .upload { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+
+/* ---------- SVG semboller ve figürler ---------- */
+.sv { display: block; fill: currentColor; }
+.card .idx b { display: block; font-weight: 700; }
+.card .idx .sv { width: calc(var(--cw) * var(--c-idx) * .78); height: calc(var(--cw) * var(--c-idx) * .78); margin-top: 1px; }
+.card .pips i { display: block; width: calc(var(--cw) * .2); height: calc(var(--cw) * .2); font-size: 0; }
+.card .pips i .sv { width: 100%; height: 100%; }
+.card .art.pips { inset: 12% 24%; }
+.th-modern .card .art.pips { inset: 26% 12% 10% 32%; }
+.th-modern .card .pips i { width: calc(var(--cw) * .16); height: calc(var(--cw) * .16); }
+.card .ace-pip { width: calc(var(--cw) * .5); height: calc(var(--cw) * .5); filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+.card.ace.s0 .ace-pip { width: calc(var(--cw) * .66); height: calc(var(--cw) * .66); }
+.card.ace.s0 .ace-art::after {
+  content: ""; position: absolute; width: calc(var(--cw) * .82); height: calc(var(--cw) * .82); border-radius: 50%;
+  border: 1px solid currentColor; opacity: .25;
+}
+
+/* figür renkleri: temalara göre değişir */
+body {
+  --f-robe-r: #b3202e; --f-robe-b: #1f3f8a; --f-robe2: #e9c46a; --f-gold: #e0b44c; --f-gold-d: #a87c1f;
+  --f-skin: #f6d7b8; --f-hair-r: #7a4a1d; --f-hair-b: #2b2b2b; --f-trim: #15171a; --f-collar: #fff;
+}
+.th-vintage { --f-robe-r: #8f3b2b; --f-robe-b: #3c4f6b; --f-robe2: #d6b56d; --f-skin: #f0d3ad; --f-trim: #3b2a1a; }
+.th-modern { --f-robe-r: #e11d48; --f-robe-b: #4f46e5; --f-robe2: #fbbf24; --f-trim: #1f2937; }
+.th-royal { --f-robe-r: #b0122b; --f-robe-b: #24407e; --f-robe2: #e0b44c; --f-trim: #e0b44c; --f-collar: #f5ecd5; }
+.th-night { --f-robe-r: #ff6b7a; --f-robe-b: #6aa8ff; --f-robe2: #e0b44c; --f-trim: #0f1218; --f-skin: #e8c9a8; }
+.card .face-art { inset: 12% 21%; padding: 0; display: block; }
+.fsvg { width: 100%; height: 100%; display: block; }
+.fsvg .robe { fill: var(--f-robe-b); }
+.card.s1 .fsvg .robe, .card.s2 .fsvg .robe { fill: var(--f-robe-r); }
+.card.s1 .fsvg .robe2, .card.s2 .fsvg .robe2 { fill: var(--f-robe-b); }
+.fsvg .robe2 { fill: var(--f-robe-r); }
+.card.face .fsvg .collar { fill: var(--f-collar); stroke: var(--f-trim); stroke-width: .5; }
+.fsvg .trim { stroke: var(--f-gold); stroke-width: 1.4; }
+.fsvg .pattern { fill: var(--f-gold); }
+.fsvg .skin { fill: var(--f-skin); stroke: var(--f-trim); stroke-width: .5; }
+.fsvg .hair { fill: var(--f-hair-r); }
+.card.s0 .fsvg .hair, .card.s3 .fsvg .hair { fill: var(--f-hair-b); }
+.fsvg .eye { fill: #1b1b1b; }
+.fsvg .mouth { stroke: #9b3b2b; stroke-width: .7; }
+.fsvg .gold { fill: var(--f-gold); stroke: var(--f-gold-d); stroke-width: .5; }
+.fsvg .gold-d { fill: var(--f-gold-d); }
+.fsvg .jewel { fill: #c4202b; }
+.fsvg .feather { fill: #d9d2c0; stroke: var(--f-trim); stroke-width: .4; }
+.fsvg .flower { fill: #e85d75; stroke: var(--f-gold-d); stroke-width: .4; }
+.fsvg .stem { stroke: #2f7d32; stroke-width: 1; }
+.fsvg .emb { fill: currentColor; }
+.fsvg .divider { stroke: var(--f-gold-d); stroke-width: .6; opacity: .6; }
+.th-royal .card .face-art { background: linear-gradient(180deg, #fbf6e7, #efe1b8); }
+.th-night .card .face-art { background: linear-gradient(180deg, #3a4150, #2b313d); }
+
+/* kendi arka yüz resmi */
+.bk-custom .card.back, .backpick .card.back.bk-custom { background: center / cover no-repeat var(--back-img, none), #5a0c19; }
+.bk-custom .card.back::before, .backpick .card.back.bk-custom::before { content: none; }
+.backpick .card.back.plus { background: #f2efe7; border: 2px dashed #b9b2a2; box-shadow: none; display: grid; place-items: center; font-size: 20px; color: var(--muted); }
+.backpick .card.back.plus::before, .backpick .card.back.plus::after { content: none; }
+.card .pips.many i { width: calc(var(--cw) * .17); height: calc(var(--cw) * .17); }
+.th-modern .card .pips.many i { width: calc(var(--cw) * .14); height: calc(var(--cw) * .14); }

@@ -27,68 +27,119 @@ const BACKS = [['bordo', 'Bordo'], ['navy', 'Lacivert'], ['green', 'Zümrüt'], 
 const FELTS = [['green', 'Klasik yeşil'], ['blue', 'Okyanus mavisi'], ['red', 'Kumarhane bordosu'], ['purple', 'Mor kadife'], ['wood', 'Ceviz ahşap'], ['dark', 'Antrasit'], ['marble', 'Mermer'], ['turkish', 'Çini desen']];
 const look = { theme: 'classic', back: 'bordo', four: false, big: false, felt: 'green' };
 try { Object.assign(look, JSON.parse(localStorage.getItem('cardLook') || '{}')); } catch (e) {}
-let customImg = null;
-try { customImg = localStorage.getItem('tableImg'); } catch (e) {}
+// Kullanıcı resimleri: masa zemini ve kart arka yüzü
+const IMG = {
+  table: { key: 'tableImg', max: 1600, look: 'felt', css: '--table-img', fallback: 'green', data: null },
+  back: { key: 'backImg', max: 500, look: 'back', css: '--back-img', fallback: 'bordo', data: null },
+};
+for (const k in IMG) try { IMG[k].data = localStorage.getItem(IMG[k].key); } catch (e) {}
 function applyLook() {
   const b = document.body;
   [...b.classList].filter(c => /^(th|bk|tb)-/.test(c) || c === 'fourcolor' || c === 'bigidx').forEach(c => b.classList.remove(c));
-  if (look.felt === 'custom' && !customImg) look.felt = 'green';
+  for (const k in IMG) {
+    const m = IMG[k];
+    if (look[m.look] === 'custom' && !m.data) look[m.look] = m.fallback;
+    if (m.data) b.style.setProperty(m.css, `url("${m.data}")`); else b.style.removeProperty(m.css);
+  }
   b.classList.add('th-' + look.theme, 'bk-' + look.back, 'tb-' + look.felt);
   if (look.four) b.classList.add('fourcolor');
   if (look.big) b.classList.add('bigidx');
-  if (customImg) b.style.setProperty('--table-img', `url("${customImg}")`); else b.style.removeProperty('--table-img');
   try { localStorage.setItem('cardLook', JSON.stringify(look)); } catch (e) {}
 }
-// Bilgisayardan seçilen resmi küçültüp (en fazla 1600px, JPEG) sakla
-function loadTableImage(file) {
+// Bilgisayardan seçilen resmi küçültüp (JPEG) sakla
+function loadImage(kind, file) {
   if (!file || !file.type.startsWith('image/')) return;
+  const m = IMG[kind];
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.onload = () => {
-    const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const k = Math.min(1, m.max / Math.max(img.width, img.height));
     const cv = document.createElement('canvas');
     cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
     cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
     URL.revokeObjectURL(url);
-    customImg = cv.toDataURL('image/jpeg', 0.85);
-    try { localStorage.setItem('tableImg', customImg); } catch (e) { /* kota dolarsa yalnız bu oturumda kalır */ }
-    look.felt = 'custom';
+    m.data = cv.toDataURL('image/jpeg', 0.86);
+    try { localStorage.setItem(m.key, m.data); } catch (e) { /* kota dolarsa yalnız bu oturumda kalır */ }
+    look[m.look] = 'custom';
     applyLook();
     render();
   };
   img.src = url;
 }
-applyLook();
+function clearImage(kind) {
+  const m = IMG[kind];
+  m.data = null;
+  try { localStorage.removeItem(m.key); } catch (e) {}
+  if (look[m.look] === 'custom') look[m.look] = m.fallback;
+  applyLook();
+}
 
 // ---------------- kart çizimi ----------------
+// Renk sembolleri SVG olarak bir kez tanımlanır, her yerde <use> ile çizilir (her cihazda aynı ve keskin)
+const SUIT_PATHS = [
+  '<path d="M50 4C41 20 6 38 6 61c0 14 11 24 24 24 8 0 14-4 17-9-1 9-5 16-13 20h32c-8-4-12-11-13-20 3 5 9 9 17 9 13 0 24-10 24-24C94 38 59 20 50 4z"/>',
+  '<path d="M50 90C22 68 4 52 4 31 4 16 15 6 29 6c10 0 17 6 21 14 4-8 11-14 21-14 14 0 25 10 25 25 0 21-18 37-46 59z"/>',
+  '<path d="M50 2 89 50 50 98 11 50z"/>',
+  '<circle cx="50" cy="27" r="20"/><circle cx="26" cy="58" r="20"/><circle cx="74" cy="58" r="20"/><path d="M42 40h16v14H42z"/><path d="M46 56c0 18-5 30-14 38h36c-9-8-14-20-14-38z"/>',
+];
+document.body.insertAdjacentHTML('afterbegin', `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${SUIT_PATHS.map((p, i) => `<symbol id="su${i}" viewBox="0 0 100 100">${p}</symbol>`).join('')}</defs></svg>`);
+const suitSVG = (s, cls = '') => `<svg class="sv ${cls}" viewBox="0 0 100 100"><use href="#su${s}"/></svg>`;
+
 // Gerçek iskambil pip düzenleri (x%, y%)
 const PIPS = {
-  2: [[50, 16], [50, 84]],
-  3: [[50, 16], [50, 50], [50, 84]],
-  4: [[30, 16], [70, 16], [30, 84], [70, 84]],
-  5: [[30, 16], [70, 16], [50, 50], [30, 84], [70, 84]],
-  6: [[30, 16], [70, 16], [30, 50], [70, 50], [30, 84], [70, 84]],
-  7: [[30, 16], [70, 16], [50, 33], [30, 50], [70, 50], [30, 84], [70, 84]],
-  8: [[30, 16], [70, 16], [50, 33], [30, 50], [70, 50], [50, 67], [30, 84], [70, 84]],
-  9: [[30, 16], [70, 16], [30, 39], [70, 39], [50, 50], [30, 61], [70, 61], [30, 84], [70, 84]],
-  10: [[30, 16], [70, 16], [50, 28], [30, 39], [70, 39], [30, 61], [70, 61], [50, 72], [30, 84], [70, 84]],
+  2: [[50, 12], [50, 88]],
+  3: [[50, 12], [50, 50], [50, 88]],
+  4: [[25, 12], [75, 12], [25, 88], [75, 88]],
+  5: [[25, 12], [75, 12], [50, 50], [25, 88], [75, 88]],
+  6: [[25, 12], [75, 12], [25, 50], [75, 50], [25, 88], [75, 88]],
+  7: [[25, 12], [75, 12], [50, 31], [25, 50], [75, 50], [25, 88], [75, 88]],
+  8: [[25, 12], [75, 12], [50, 31], [25, 50], [75, 50], [50, 69], [25, 88], [75, 88]],
+  9: [[25, 12], [75, 12], [25, 37], [75, 37], [50, 50], [25, 63], [75, 63], [25, 88], [75, 88]],
+  10: [[25, 12], [75, 12], [50, 25], [25, 37], [75, 37], [25, 63], [75, 63], [50, 75], [25, 88], [75, 88]],
 };
-const FACE_ICON = { 11: '♞', 12: '♛', 13: '♚' };
 const FACE_NAME = { 11: 'VALE', 12: 'KIZ', 13: 'PAPAZ' };
+
+// Çift başlı figür portresi (üst yarı çizilir, alt yarı 180° döndürülür)
+function faceSVG(r, s) {
+  const crown = {
+    13: '<path class="gold" d="M19 13 20 3l4.5 5L30 1l5.5 7L40 3l1 10z"/><circle class="jewel" cx="30" cy="6.5" r="1.6"/><path class="gold-d" d="M19 13h22v2.6H19z"/>',
+    12: '<path class="gold" d="M21 13c2-5 5-8 9-9 4 1 7 4 9 9z"/><circle class="jewel" cx="30" cy="8" r="1.8"/><circle class="gold-d" cx="24" cy="10.5" r="1"/><circle class="gold-d" cx="36" cy="10.5" r="1"/>',
+    11: '<path class="robe2" d="M19 14c1-7 6-11 12-11 6 0 10 3 12 8l5-1-4 5z"/><path class="gold-d" d="M19 13.5h24v2H19z"/><path class="feather" d="M41 10c4-6 9-8 13-7-4 2-8 6-11 10z"/>',
+  }[r];
+  const hair = {
+    13: '<path class="hair" d="M22 16c-1 6 0 11 3 14 2 3 8 5 10 0 3-3 4-8 3-14-2 6-5 9-8 9s-6-3-8-9z"/>',
+    12: '<path class="hair" d="M21 15c-3 6-2 14 0 19l4-2c-2-5-2-11 0-16zm18 0c3 6 2 14 0 19l-4-2c2-5 2-11 0-16z"/>',
+    11: '<path class="hair" d="M22 16c-1 4 0 8 2 10l2-1c-1-3-1-6 0-9zm16 0c1 4 0 8-2 10l-2-1c1-3 1-6 0-9z"/>',
+  }[r];
+  const half = `
+    <path class="robe" d="M5 45 9 31c6-5 14-7 21-7s15 2 21 7l4 14z"/>
+    <path class="robe2" d="M23 25 30 45 37 25c-2-1-5-1.5-7-1.5s-5 .5-7 1.5z"/>
+    <path class="trim" d="M9 31c6-5 14-7 21-7s15 2 21 7" fill="none"/>
+    <path class="trim" d="M23 25 30 45 37 25" fill="none"/>
+    <circle class="pattern" cx="14" cy="38" r="1.3"/><circle class="pattern" cx="46" cy="38" r="1.3"/><circle class="pattern" cx="18" cy="42" r="1.3"/><circle class="pattern" cx="42" cy="42" r="1.3"/>
+    <ellipse class="collar" cx="30" cy="24.5" rx="8.5" ry="2.6"/>
+    <circle class="skin" cx="30" cy="17" r="7.2"/>
+    ${hair}
+    <circle class="eye" cx="27.4" cy="16.5" r=".8"/><circle class="eye" cx="32.6" cy="16.5" r=".8"/>
+    <path class="mouth" d="M28 21q2 1.2 4 0" fill="none"/>
+    ${crown}
+    <use href="#su${s}" x="44" y="26" width="9" height="9" class="emb"/>
+    ${r === 13 ? '<path class="gold-d" d="M8 45 13 26h2.2l-3 19z"/>' : r === 12 ? '<circle class="flower" cx="12" cy="30" r="2.4"/><path class="stem" d="M12 32v13" fill="none"/>' : '<path class="gold-d" d="M50 45 47 22h2l3 23z"/>'}`;
+  return `<svg class="fsvg" viewBox="0 0 60 90" preserveAspectRatio="none"><g>${half}</g><g transform="rotate(180 30 45)">${half}</g><path class="divider" d="M3 45h54" fill="none"/></svg>`;
+}
+
 function cardHTML(c, cls = '', attrs = '') {
-  const r = rankStr(c.r), s = SUITS[c.s];
+  const r = rankStr(c.r);
   const face = c.r >= 11 && c.r <= 13;
   let art;
-  if (face) {
-    art = `<div class="art face-art"><span class="wm">${s}</span><span class="fi">${FACE_ICON[c.r]}</span><span class="fl">${r}${s}</span><span class="fn">${FACE_NAME[c.r]}</span></div>`;
-  } else if (c.r === 14) {
-    art = `<div class="art ace-art"><span>${s}</span></div>`;
-  } else {
-    art = `<div class="art pips">${PIPS[c.r].map(([x, y]) => `<i style="left:${x}%;top:${y}%"${y > 50 ? ' class="flip"' : ''}>${s}</i>`).join('')}</div>`;
-  }
-  return `<div class="card s${c.s} ${isRed(c.s) ? 'red' : ''} ${face ? 'face' : ''} ${c.r === 14 ? 'ace' : ''} ${cls}" ${attrs} aria-label="${SUIT_NAMES[c.s]} ${r}">
-    <div class="idx tl">${r}<span>${s}</span></div>${art}<div class="idx br">${r}<span>${s}</span></div></div>`;
+  if (face) art = `<div class="art face-art">${faceSVG(c.r, c.s)}</div>`;
+  else if (c.r === 14) art = `<div class="art ace-art">${suitSVG(c.s, 'ace-pip')}</div>`;
+  else art = `<div class="art pips${c.r >= 9 ? ' many' : ''}">${PIPS[c.r].map(([x, y]) => `<i style="left:${x}%;top:${y}%"${y > 50 ? ' class="flip"' : ''}>${suitSVG(c.s)}</i>`).join('')}</div>`;
+  const idx = pos => `<div class="idx ${pos}"><b>${r}</b>${suitSVG(c.s)}</div>`;
+  return `<div class="card s${c.s} ${isRed(c.s) ? 'red' : ''} ${face ? 'face' : ''} ${c.r === 14 ? 'ace' : ''} ${cls}" ${attrs} aria-label="${SUIT_NAMES[c.s]} ${face ? FACE_NAME[c.r] : r}">
+    ${idx('tl')}${art}${idx('br')}</div>`;
 }
+applyLook();
 const backsHTML = (n, vertical) => `<div class="backs ${vertical ? 'v' : ''}">${'<div class="card back"></div>'.repeat(Math.min(n, vertical ? 7 : 13))}</div>`;
 function suitLines(hand) {
   return `<div class="suitlines">${[0, 1, 3, 2].map(s => `<div class="${isRed(s) ? 'red' : ''}">${SUITS[s]} ${hand.filter(c => c.s === s).map(c => rankStr(c.r)).join(' ') || '—'}</div>`).join('')}</div>`;
@@ -565,7 +616,8 @@ document.querySelector('.top').addEventListener('click', onAct);
 app.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset.act === 'card') { e.preventDefault(); onAct(e); } });
 app.addEventListener('change', e => {
   if (e.target.dataset.act === 'tutor') setup.tutor = e.target.checked;
-  if (e.target.dataset.act === 'tableimg') loadTableImage(e.target.files[0]);
+  if (e.target.dataset.act === 'tableimg') loadImage('table', e.target.files[0]);
+  if (e.target.dataset.act === 'backimg') loadImage('back', e.target.files[0]);
 });
 
 function onAct(e) {
@@ -579,7 +631,7 @@ function onAct(e) {
     case 'learn': g = null; view = 'learn'; break;
     case 'cards': view = 'cards'; break;
     case 'look': look[el.dataset.k] = el.dataset.v === 'true' ? true : el.dataset.v === 'false' ? false : el.dataset.v; applyLook(); break;
-    case 'clearimg': customImg = null; try { localStorage.removeItem('tableImg'); } catch (e) {} if (look.felt === 'custom') look.felt = 'green'; applyLook(); break;
+    case 'clearimg': clearImage(el.dataset.kind); break;
     case 'lookdone': view = g ? 'game' : 'menu'; break;
     case 'set': setup[el.dataset.k] = el.dataset.v === 'true' ? true : el.dataset.v === 'false' ? false : el.dataset.v; break;
     case 'tutor': return;
@@ -618,15 +670,18 @@ function onAct(e) {
 function cardsHTML() {
   const sample = [{ s: 0, r: 14 }, { s: 1, r: 13 }, { s: 3, r: 12 }, { s: 2, r: 11 }, { s: 1, r: 10 }, { s: 3, r: 7 }, { s: 2, r: 3 }];
   const opt = (k, list) => `<div class="seg">${list.map(([v, t]) => `<button data-act="look" data-k="${k}" data-v="${v}" class="${String(look[k]) === String(v) ? 'on' : ''}">${t}</button>`).join('')}</div>`;
-  const backs = `<div class="backpick">${BACKS.map(([v, t]) => `<button data-act="look" data-k="back" data-v="${v}" class="${look.back === v ? 'on' : ''}"><span class="card back bk-${v}"></span><small>${t}</small></button>`).join('')}</div>`;
+  const backs = `<div class="backpick">${BACKS.map(([v, t]) => `<button data-act="look" data-k="back" data-v="${v}" class="${look.back === v ? 'on' : ''}"><span class="card back bk-${v}"></span><small>${t}</small></button>`).join('')}
+    ${IMG.back.data ? `<button data-act="look" data-k="back" data-v="custom" class="${look.back === 'custom' ? 'on' : ''}"><span class="card back bk-custom"></span><small>Kendi resmim</small></button>` : ''}
+    <label class="upload"><input type="file" accept="image/*" data-act="backimg" hidden><span class="card back plus">＋</span><small>Bilgisayardan seç</small></label></div>
+    ${IMG.back.data ? '<button class="btn light" style="margin-top:6px" data-act="clearimg" data-kind="back">Kendi arka yüzümü kaldır</button>' : ''}`;
   return `<section class="setup wide"><div class="box"><h2>Kart görünümü</h2>
     <div class="preview table-bg">${sample.map(c => cardHTML(c)).join('')}<div class="card back"></div></div>
     <div class="opt"><label class="t">Ön yüz teması</label>${opt('theme', THEMES)}</div>
     <div class="opt"><label class="t">Arka yüz</label>${backs}</div>
     <div class="opt"><label class="t">Masa zemini</label><div class="backpick">${FELTS.map(([v, t]) => `<button data-act="look" data-k="felt" data-v="${v}" class="${look.felt === v ? 'on' : ''}"><span class="feltsw tb-${v}"></span><small>${t}</small></button>`).join('')}
-      ${customImg ? `<button data-act="look" data-k="felt" data-v="custom" class="${look.felt === 'custom' ? 'on' : ''}"><span class="feltsw tb-custom"></span><small>Kendi resmim</small></button>` : ''}
+      ${IMG.table.data ? `<button data-act="look" data-k="felt" data-v="custom" class="${look.felt === 'custom' ? 'on' : ''}"><span class="feltsw tb-custom"></span><small>Kendi resmim</small></button>` : ''}
       <label class="upload"><input type="file" accept="image/*" data-act="tableimg" hidden><span class="feltsw plus">＋</span><small>Bilgisayardan seç</small></label></div>
-      ${customImg ? '<button class="btn light" style="margin-top:6px" data-act="clearimg">Kendi resmimi kaldır</button>' : ''}</div>
+      ${IMG.table.data ? '<button class="btn light" style="margin-top:6px" data-act="clearimg" data-kind="table">Kendi resmimi kaldır</button>' : ''}</div>
     <div class="opt"><label class="t">Renkler</label>${opt('four', [['false', 'İki renk (klasik)'], ['true', 'Dört renk (♣ yeşil, ♦ mavi)']])}</div>
     <div class="opt"><label class="t">Köşe yazısı</label>${opt('big', [['false', 'Normal'], ['true', 'Büyük (kolay okunur)']])}</div>
     <button class="btn primary" data-act="lookdone">${g ? 'Oyuna dön' : 'Tamam'}</button></div></section>`;
