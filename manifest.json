@@ -1,0 +1,9 @@
+{
+  "name": "Briç & King",
+  "short_name": "Briç & King",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0c3b26",
+  "theme_color": "#0c3b26",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
